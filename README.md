@@ -11,11 +11,7 @@
 | 자료 | 내용 |
 |---|---|
 | [시연 홈페이지](https://leekybin.github.io/SAYFE-contest-submission/) | 영상 2종, 화면 시안, 구현 범위를 한 페이지로 제공 |
-| [Pleos 촬영 + 사고 재현 영상](demo/SAYFE_pleos_demo.mp4) | 실제 에뮬레이터 주행·감속·P 정차와 별도 사고 재현을 함께 구성 |
-| [콘셉트 시연 영상](demo/SAYFE_concept_demo.mp4) | 두 차량 접촉부터 안전 확인·소통·자료 정리·인계까지 약 80초 |
-| [직접 조작하는 시연](demo/sayfe-demo.html) | 재생·일시정지·구간 이동이 가능한 애니메이션 |
-| [개발 및 검증 기록](docs/IMPLEMENTATION.md) | 코드·SDK·빌드·영상 검증의 실제 범위 |
-| [제출 링크 정리](docs/SUBMISSION.md) | GitHub 및 공개 시연 링크 제출 방법 |
+
 
 GitHub의 HTML 파일 화면은 웹사이트 실행 화면이 아닙니다. 저장소의 **About / Website에 등록한 GitHub Pages 주소**로 접속하거나 아래 로컬 실행 방법을 사용하세요. MP4 미리보기가 지원되지 않으면 파일의 **Download raw file**로 내려받아 Chrome·Edge 또는 동영상 플레이어로 재생할 수 있습니다.
 
