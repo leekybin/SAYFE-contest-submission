@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SAYFE · 사고 대응 콘셉트 시연</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#080e18;color:#ebf4f7;font:16px system-ui,sans-serif}
+header,footer{max-width:1440px;margin:auto;padding:18px 24px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+header b{letter-spacing:4px;font-size:22px}header span{color:#97b0c1;flex:1}
+button{background:#193144;border:1px solid #3c596a;border-radius:8px;color:white;padding:12px 20px;font:inherit;cursor:pointer}
+button.primary{background:#087e79}button:disabled{opacity:.5;cursor:default}
+main{max-width:1440px;margin:auto}canvas{display:block;width:100%;aspect-ratio:16/9;background:#111c2c}
+input{flex:1;accent-color:#53e3c3}footer span{font-variant-numeric:tabular-nums}p{max-width:1440px;margin:0 auto;padding:0 24px 20px;color:#a5bac7;line-height:1.7}
+</style>
+<header><b>SAYFE</b><span>80초 · 다른 차량과의 접촉사고 대응</span><a href="SAYFE_pleos_demo.mp4" style="color:#77ebce">Pleos 촬영본 영상</a><button id="play" class="primary">재생</button><button id="reset">처음으로</button><button id="record">영상 만들기 · WebM</button></header>
+<main><canvas id="scene" width="1920" height="1080" aria-label="가상의 주행 접촉사고와 사고 대응 절차 시연"></canvas><details style="padding:20px 24px;background:#102234"><summary style="cursor:pointer;color:#77ebce">실제 Pleos 촬영 화면과 접촉사고 재현 영상 보기</summary><p style="padding:16px 0">주행·감속·P 정차는 실제 에뮬레이터 촬영입니다. 두 차량의 접촉과 사고 대응 기능은 별도 연출입니다.</p><video controls preload="none" src="SAYFE_pleos_demo.mp4" style="width:100%;max-height:80vh"></video></details></main>
+<footer><span id="time">00:00 / 01:20</span><input id="seek" type="range" min="0" max="80" step=".1" value="0" aria-label="시연 재생 위치"><span id="status">재생 준비</span></footer>
+<p>독립 제작한 콘셉트 시연입니다. 실제 Pleos 충돌 시뮬레이터·사고 자동 감지·음성 인식·AI 분석·보험사 전송 결과가 아닙니다.
+‘영상 만들기’를 누르면 처음부터 80초를 재생하고 브라우저가 지원하는 WebM 파일을 저장합니다. 녹화 중에는 탭을 열어 두세요. 음성 없는 자막형 영상입니다.</p>
+<script>
+"use strict";
+const canvas=document.getElementById("scene"),ctx=canvas.getContext("2d");
+const play=document.getElementById("play"),seek=document.getElementById("seek"),status=document.getElementById("status");
+const duration=80;
+let time=0,playing=false,last=0,recorder=null,chunks=[],stream=null,recording=false;
+const phases=[
+{start:0,end:11,title:"평범한 주행",sub:"고속도로를 달리던 운전자",copy:"주행 중에는 화면 조작 없이 운전에 집중합니다."},
+{start:11,end:18,title:"다른 차량과의 접촉사고",sub:"오른쪽 차량이 진입하며 내 차량 측면과 접촉",copy:"두 차량의 접촉과 제동을 연출한 가상 시나리오입니다. 과실 판단을 의미하지 않습니다."},
+{start:18,end:26,title:"안전 확보가 먼저",sub:"제동 후 안전한 정차 상황으로 전환",copy:"부상·화재·2차 사고 위험을 우선 확인합니다."},
+{start:26,end:36,title:"01  내 상태 확인",sub:"음성 없이 선택하는 안전 확인",copy:"위험하거나 판단이 어렵다면 긴급 도움 요청을 우선합니다."},
+{start:36,end:48,title:"02  눈으로 나누는 대화",sub:"상대방의 말은 문자로, 내 답변은 선택으로",copy:"청각장애 운전자가 대화 내용을 확인하고 답할 수 있도록 돕습니다."},
+{start:48,end:60,title:"03  사고 자료 준비",sub:"사진 · 진술 · 시각 · 위치를 구분해 정리",copy:"안전이 확보된 경우에만 기록합니다. 추정은 사실과 구분합니다."},
+{start:60,end:73,title:"04  확인하고 인계",sub:"운전자가 검토한 자료만 전달",copy:"확인하지 못한 내용은 담당자에게 물어볼 질문으로 남깁니다."},
+{start:73,end:80,title:"사고 이후에도, 혼자 막막하지 않도록",sub:"SAYFE",copy:"청각장애 운전자를 위한 시각적 사고 대응 도우미"}
+];
+const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
+const smooth=x=>{x=clamp(x,0,1);return x*x*(3-2*x)};
+function rect(x,y,w,h,c,r=0){ctx.fillStyle=c;ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fill()}
+function text(s,x,y,size=28,color="#eef5fa",weight=400){
+ctx.fillStyle=color;ctx.font=weight+" "+size+"px system-ui, sans-serif";ctx.fillText(s,x,y)}
+function lines(s,x,y,size=28,color="#c1d1df",max=750){
+ctx.font="400 "+size+"px system-ui, sans-serif";let row="",yy=y;
+for(const ch of s){if(ch==="\n"||ctx.measureText(row+ch).width>max){text(row,x,yy,size,color);yy+=size*1.55;row=ch==="\n"?"":ch}else row+=ch}
+if(row)text(row,x,yy,size,color);return yy}
+function pill(s,x,y,w,c="#183f44",fg="#72f0d0"){rect(x,y,w,46,c,23);text(s,x+20,y+31,21,fg,600)}
+function card(x,y,w,h,title,body,accent="#4de0c1"){
+rect(x,y,w,h,"#14283a",18);rect(x,y+20,5,h-40,accent,2);text(title,x+28,y+45,25,accent,600);lines(body,x+28,y+88,27,"#e5edf6",w-55)}
+function car(x,y,w,h,color,brake=false){
+ctx.save();ctx.translate(x,y);ctx.shadowColor="#0008";ctx.shadowBlur=24;
+rect(-w/2,-h,w,h,color,18);ctx.shadowBlur=0;
+rect(-w*.4,-h*.88,w*.8,h*.36,"#111d2c",12);
+rect(-w*.45,-h*.38,w*.9,h*.22,"#6b8191",8);
+rect(-w*.46,-h*.25,w*.2,h*.08,brake?"#ff3a4e":"#ab3545",4);
+rect(w*.26,-h*.25,w*.2,h*.08,brake?"#ff3a4e":"#ab3545",4);
+rect(-w*.44,-h*.08,w*.16,h*.16,"#0b1018",4);rect(w*.28,-h*.08,w*.16,h*.16,"#0b1018",4);
+ctx.restore()}
+function highway(t,x,y,w,h){
+ctx.save();ctx.beginPath();ctx.rect(x,y,w,h);ctx.clip();ctx.translate(x,y);
+const hit=t>=14.2&&t<15.1;
+if(hit)ctx.translate(Math.sin(t*90)*10,Math.cos(t*83)*8);
+const g=ctx.createLinearGradient(0,0,0,h);g.addColorStop(0,"#42566a");g.addColorStop(.45,"#8192a0");g.addColorStop(1,"#182432");
+ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
+const horizon=h*.34;
+ctx.fillStyle="#1a2532";ctx.beginPath();ctx.moveTo(w*.42,horizon);ctx.lineTo(w*.58,horizon);ctx.lineTo(w*1.3,h);ctx.lineTo(-w*.3,h);ctx.fill();
+function project(l,z){return [w*.5+l*w*.8*z,horizon+(h-horizon)*z*z]}
+for(const l of [-.5,.5]){ctx.strokeStyle="#d7e0e5";ctx.lineWidth=4;ctx.beginPath();for(let z=0;z<=1;z+=.02){let [a,b]=project(l,z);ctx.lineTo(a,b)}ctx.stroke()}
+const moving=t<18? t:18;
+for(let i=0;i<18;i++){
+let z=((i/18+moving*.14)%1);
+for(const l of [-.17,.17]){const [a,b]=project(l,z),[a2,b2]=project(l,Math.min(1,z+.025));ctx.strokeStyle="#e1e5dc";ctx.lineWidth=1+z*5;ctx.beginPath();ctx.moveTo(a,b);ctx.lineTo(a2,b2);ctx.stroke()}
+const [a,b]=project(-.64,z);rect(a,b,3+z*4,3+z*18,"#8195a6");
+const [a2,b2]=project(.64,z);rect(a2,b2,3+z*4,3+z*18,"#8195a6");
+}
+const enter=smooth((t-10.5)/3.7),stop=smooth((t-18)/3);
+const egoLane=t>18?-.08*stop:0;
+const otherLane=t>18?.19+.14*stop:.37-.18*enter;
+const depth=.65+.30*enter;
+const [egoX,egoY]=project(egoLane,.95);
+const [otherX,otherY]=project(otherLane,depth);
+const egoW=60+.95*220,otherW=60+depth*220;
+car(otherX,otherY,otherW,35+depth*100,"#e7a55b",t>=14.2);
+car(egoX,egoY,egoW,139,"#48c6b3",t>=14.2);
+text("내 차량",egoX-45,egoY-155,Math.max(15,w*.017),"#8ff6dc",700);
+text("상대 차량",otherX-55,otherY-35-depth*100-20,Math.max(15,w*.017),"#ffdaab",700);
+if(t>=11&&t<14.2){
+ctx.strokeStyle="#ffbe78";ctx.lineWidth=4;ctx.setLineDash([9,8]);
+ctx.beginPath();ctx.moveTo(otherX,otherY-60);ctx.lineTo(egoX+egoW*.48,egoY-60);ctx.stroke();ctx.setLineDash([]);
+}
+if(t>=14.2&&t<16.2){
+const contactX=egoX+egoW*.48,contactY=egoY-65;
+ctx.strokeStyle="#ffd7a7";ctx.lineWidth=4;
+for(let i=0;i<10;i++){const angle=i*Math.PI/5;ctx.beginPath();ctx.moveTo(contactX+Math.cos(angle)*10,contactY+Math.sin(angle)*10);ctx.lineTo(contactX+Math.cos(angle)*37,contactY+Math.sin(angle)*37);ctx.stroke()}
+}
+if(t>=18&&Math.floor(t*3)%2===0){
+rect(egoX-egoW*.46,egoY-35,egoW*.2,12,"#ffc34f",3);rect(egoX+egoW*.26,egoY-35,egoW*.2,12,"#ffc34f",3);
+}
+if(t<18){rect(0,h-44,w,44,"#0a1525");text("두 차량 접촉 시나리오 · 후방 시점",26,h-14,Math.max(14,w*.013),"#a5bacd",600)}
+if(hit){ctx.fillStyle="rgba(255,129,88,"+(Math.sin((t-14.2)/.9*Math.PI)*.22)+")";ctx.fillRect(0,0,w,h)}
+
+ctx.restore()}
+function speed(t){if(t<11)return Math.round(35+Math.min(t,5)*5);if(t<14.2)return 60;return Math.round(60*(1-smooth((t-14.2)/3.8)))}
+function draw(t){
+ctx.clearRect(0,0,1920,1080);rect(0,0,1920,1080,"#0a1422");
+text("SAYFE",64,78,42,"#77ebce",800);text("사고 대응 콘셉트 시연",260,76,25,"#b4c8d8");
+pill("가상 사고 · 예시 데이터",1490,38,360,"#382d24","#ffce9c");
+const p=phases.find(p=>t>=p.start&&t<p.end)||phases[7];
+if(t<26){
+highway(t,64,120,1792,610);
+rect(100,150,280,124,"#0b1829dd",16);text(String(speed(t)),130,219,57,"#fff",700);
+text("km/h",235,219,23,"#a8bdcd");text(t<18?"D":"P",320,219,39,"#71ebcd",700);
+pill(t<18?"주행 상황 연출":"정차 상황 연출",1420,150,380);
+if(t>=18){card(100,480,620,200,"접촉 후 안전 확보 · 장면 전환","속도 0 · 기어 P · 비상등 연출");text("장면 전환: 안전 확보 후 사고 대응 시작",780,670,29,"#fff",600)}
+text(p.title,64,810,48,"#fff",700);text(p.sub,64,865,31,"#78e6cf");lines(p.copy,64,924,29,"#b6cbd9",1720);
+}else if(t<73){
+highway(23,64,120,620,440);pill("정차 후 이용",94,148,240);
+text("다음 할 일",94,620,25,"#7a98ac");text(p.title.slice(4),94,678,40,"#fff",700);
+lines(p.copy,94,740,29,"#afc5d5",540);
+rect(724,120,1132,820,"#102234",24);
+text(p.title,770,186,36,"#80edd2",700);text(p.sub,770,234,26,"#adc8da");
+const x=770,w=1038;
+if(t<36){
+text("지금 안전한 장소에 있나요?",x,332,43,"#fff",700);
+card(x,382,w,150,"안전 확인","안전한 장소에 정차했고, 부상은 없습니다.");
+card(x,560,w,150,"위험하거나 판단하기 어려운 경우","자료 수집보다 긴급 도움 요청 안내를 우선합니다.","#ffca8c");
+pill(t>=32?"안전 확인 완료 → 현장 소통":"선택형 화면으로 확인",x,780,650);
+}else if(t<48){
+card(x,288,w,154,"상대방 발화 → 문자 · 기능 예시","괜찮으세요? 보험사에 연락하겠습니다.");
+card(x,468,w,190,"운전자 선택 답변","저는 청각장애가 있습니다.\n말씀을 문자로 확인하며 대화하겠습니다.");
+pill(t>=42?"답변 선택 → 음성 전달 · 기능 예시":"문자 확인 중",x,734,800);
+text("실제 음성 SDK를 실행한 화면이 아닌 콘셉트 연출",x,864,22,"#8fa8bc");
+}else if(t<60){
+card(x,288,500,180,"사진 목록 · 예시","차량 전체 2장\n접촉 부위 2장 · 주변 상황 1장");
+card(x+528,288,510,180,"기록 정보 · 예시","사고 시각: 14:32\n위치: 운전자 확인 전");
+card(x,496,w,180,"운전자 진술 · 예시","오른쪽 차량이 진입하는 중 내 차량과 접촉했습니다.\n정확한 경위는 상대방과 추가 확인이 필요합니다.");
+pill(t>=54?"자료 분류 완료 · 예시":"사진 · 진술 정리 중 · 예시",x,758,780);
+}else{
+card(x,288,500,166,"인계 자료 · 예시","사고 요약 · 사진 목록\n당사자별 진술 · 처리 경과");
+card(x+528,288,510,166,"미확인 항목","정확한 위치 · 상대방 진술\n과실 판단은 하지 않음","#ffca8c");
+card(x,484,w,150,"사용자 검토","공유할 항목과 전달 대상을 직접 확인합니다.");
+pill(t>=67?"사용자 승인 → 인계 자료 준비 완료 · 예시":"검토 전 · 외부 전송 없음",x,746,980);
+text("보험사 자동 접수·실제 자료 전송은 수행하지 않음",x,866,23,"#8fa8bc");
+}
+}else{
+text("SAYFE",110,330,112,"#75ebce",800);
+text("사고 이후에도,",110,452,64,"#fff",700);
+text("혼자 막막하지 않도록.",110,542,64,"#fff",700);
+text("시각적 안내  /  현장 소통  /  사고 기록  /  검토 후 인계",110,680,33,"#b5cddd");
+pill("청각장애 운전자를 위한 차량용 사고 대응 경험",110,758,1120);
+text("기능과 사고 장면은 콘셉트 연출입니다.",110,898,28,"#8fa8bc");
+}
+rect(64,1011,1792,5,"#254052");rect(64,1011,1792*t/duration,5,"#6fe7cc");
+text("보이소  ·  현대자동차그룹 차량용 앱 개발 공모전",64,1054,23,"#8aa5b9");
+text(String(Math.floor(t)).padStart(2,"0")+" / 80s",1680,1054,23,"#8aa5b9");
+document.getElementById("time").textContent=format(t)+" / 01:20";seek.value=t;
+}
+function format(t){return String(Math.floor(t/60)).padStart(2,"0")+":"+String(Math.floor(t%60)).padStart(2,"0")}
+function controls(){play.textContent=playing?"일시정지":"재생";seek.disabled=recording;play.disabled=recording;document.getElementById("reset").disabled=recording;document.getElementById("record").disabled=recording}
+function tick(ts){if(playing){if(last)time=Math.min(duration,time+(ts-last)/1000);if(time>=duration){playing=false;if(recorder&&recorder.state==="recording")recorder.stop();controls()}}last=ts;draw(time);requestAnimationFrame(tick)}
+play.onclick=()=>{if(time>=duration)time=0;playing=!playing;last=0;controls()};
+document.getElementById("reset").onclick=()=>{time=0;playing=false;controls()};
+seek.oninput=()=>{time=Number(seek.value);last=0};
+document.getElementById("record").onclick=()=>{
+if(!canvas.captureStream||!window.MediaRecorder){status.textContent="녹화 미지원 브라우저 · Chrome 또는 Edge를 사용하세요.";return}
+try{
+const mime=["video/webm;codecs=vp9","video/webm;codecs=vp8","video/webm"].find(t=>MediaRecorder.isTypeSupported(t));
+if(!mime)throw Error("WebM 녹화 미지원");
+stream=canvas.captureStream(30);chunks=[];recorder=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:8000000});
+recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
+recorder.onstop=()=>{const blob=new Blob(chunks,{type:mime});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="SAYFE_concept_demo.webm";a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);stream.getTracks().forEach(t=>t.stop());recording=false;controls();status.textContent="영상 생성 완료 · 다운로드를 확인하세요."};
+recorder.onerror=()=>{playing=false;recording=false;stream.getTracks().forEach(t=>t.stop());controls();status.textContent="녹화 실패 · 다시 시도해 주세요."};
+time=0;last=0;playing=true;recording=true;draw(0);recorder.start(1000);controls();status.textContent="80초 녹화 중 · 탭을 유지해 주세요.";
+}catch(e){recording=false;controls();status.textContent="녹화 시작 실패: "+e.message}
+};
+document.addEventListener("visibilitychange",()=>{if(document.hidden&&recording)status.textContent="탭이 가려졌습니다. 영상 프레임 누락 여부를 확인하세요."});
+draw(0);requestAnimationFrame(tick);
+</script>
+</html>

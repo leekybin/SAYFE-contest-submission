@@ -1,0 +1,37 @@
+# Local IDE / machine state
+.idea/
+*.iml
+.gradle/
+.kotlin/
+local.properties
+.DS_Store
+Thumbs.db
+
+# Generated builds and caches
+**/build/
+.externalNativeBuild/
+.cxx/
+node_modules/
+demo/render-tools/
+captures/
+*.log
+*.tmp
+
+# Private credentials / signing materials
+.env
+.env.*
+!.env.example
+*.jks
+*.keystore
+keystore.properties
+google-services.json
+.aws/
+.codex/
+.agents/
+
+# Working media (publish only the two final MP4s and preview PNGs)
+demo/*.webm
+demo/pleos-driving-raw.mp4
+demo/public-site/
+submission-private/
+.private-tools/
