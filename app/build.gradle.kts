@@ -20,9 +20,10 @@ android {
 
     buildTypes {
         release {
+            // Keep the submission release stable on the Pleos API 34 runtime.
+            // Selective Kotlin/AndroidX optimization caused a startup IllegalAccessError.
             optimization {
-                enable = true
-                packageScope = setOf("androidx.**", "kotlin.**", "kotlinx.**")
+                enable = false
             }
         }
     }

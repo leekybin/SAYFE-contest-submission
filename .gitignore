@@ -35,3 +35,4 @@ demo/pleos-driving-raw.mp4
 demo/public-site/
 submission-private/
 .private-tools/
+/apk/*.idsig

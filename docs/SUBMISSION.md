@@ -18,9 +18,39 @@ Pleos Connect 환경의 Vehicle SDK 2.3.2·NaviHelper 3.0.5 연동 테스트 코
 - 저장소: https://github.com/leekybin/SAYFE-contest-submission
 - README: https://github.com/leekybin/SAYFE-contest-submission#readme
 - 화면 시안 및 영상 경로: 저장소 demo/ 폴더
-- 공개 홈페이지의 예상 주소: https://leekybin.github.io/SAYFE-contest-submission/
-  - **GitHub Pages 설정과 외부 접속 확인을 완료한 뒤에만 제출합니다.**
-  - 이 문서에 주소를 적는 것만으로 배포가 완료되지는 않습니다.
+- 공개 홈페이지: https://leekybin.github.io/SAYFE-contest-submission/
+- APK 파일 경로: **apk/보이소_SAYFE_release.apk**
+- APK 다운로드: https://raw.githubusercontent.com/leekybin/SAYFE-contest-submission/main/apk/%EB%B3%B4%EC%9D%B4%EC%86%8C_SAYFE_release.apk
+- APK 정보: release / debuggable=false / 13,712,409 bytes / Pleos Connect v2.1.0 설치·실행 확인
+
+## 접수 페이지에 입력할 값
+
+- 저장소 주소: https://github.com/leekybin/SAYFE-contest-submission
+- APK 파일 경로: apk/보이소_SAYFE_release.apk
+- 앱 이름 / 팀명: SAYFE / 보이소
+
+APK는 저장소에 직접 포함합니다. 현재 크기는 약 13.7MB로 별도 GitHub Releases 링크를 사용하지 않습니다.
+
+## 접수 메일에 추가할 내용
+
+```text
+GitHub 저장소: https://github.com/leekybin/SAYFE-contest-submission
+APK 파일 경로: apk/보이소_SAYFE_release.apk
+최종 커밋 번호: git rev-parse HEAD 명령으로 확인한 전체 40자리 값을 입력
+시연 홈페이지: https://leekybin.github.io/SAYFE-contest-submission/
+```
+
+심사는 메일에 적은 커밋을 기준으로 진행됩니다. 업로드가 완료된 최종 커밋의 전체 해시를 복사합니다.
+
+```text
+git rev-parse HEAD
+git ls-remote origin refs/heads/main
+```
+
+두 값이 같은지 확인한 뒤 메일에 기재합니다. 커밋을 추가하면 해시가 바뀌므로 최종 푸시 후 다시 확인합니다.
+현재 저장소는 Public입니다. 제공된 안내에 따라 11월 23일 1차 심사 결과 발표일까지 공개 상태를 유지합니다.
+Private으로 변경할 경우에는 안내에 적힌 11월 16일 공개 전환 기한을 지킵니다.
+이 저장소 정리는 접수 메일 발송이나 접수 완료를 대신하지 않습니다.
 
 ## GitHub Pages 설정
 
@@ -42,7 +72,7 @@ root의 index.html은 demo/index.html로 연결하며 .nojekyll을 포함합니�
 | 2 | GitHub README | 아이디어, 구현 범위, 소스 및 실행 방법 |
 | 3 | SAYFE_pleos_demo.mp4 | 실제 Pleos 환경과 사고 대응 경험을 함께 설명 |
 | 4 | SAYFE_concept_demo.mp4 | 동일 시나리오를 애니메이션으로 집중 설명 |
-| 선택 | SDK 테스트 APK | 현재 기능이 도어 조회·NaviHelper 연결 테스트임을 명시 |
+| 필수 개발 산출물 | apk/보이소_SAYFE_release.apk | 실행 가능한 서명된 release APK. 현재 기능은 도어 조회·NaviHelper 연결 테스트 |
 
 MP4를 Android Studio 에디터로 열면 텍스트나 파일 크기 경고가 나올 수 있습니다.
 심사 자료에는 IDE 경로나 해당 PC의 로컬 주소 대신 공개 홈페이지를 제출합니다.

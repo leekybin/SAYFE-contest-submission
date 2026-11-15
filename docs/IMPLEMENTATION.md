@@ -22,6 +22,8 @@
 | Android SDK | compile / target 37, min 34 |
 | Gradle Daemon JVM | 25 |
 | 테스트 환경 | Pleos Connect v2.1.0 전용 AVD, Android API 34 |
+| 전체 화면 | 2560×1440 px, 가로, 160dpi |
+| 앱 패널 | 테스트 시 약 1682×1210 px |
 
 ## 확인한 결과
 
@@ -35,6 +37,22 @@
 - 최종 영상 형식: H.264 MP4, 1920×1080, 30fps, 약 79.93초, 음성 없음
 
 위 내용은 개발 환경에서 수행한 확인 결과입니다. 실차 검증이나 모든 환경에서의 동작 보증을 뜻하지 않습니다.
+
+## 제출 release APK 검증
+
+- 제출 경로: apk/보이소_SAYFE_release.apk
+- release 빌드 및 전용 RSA 키 서명 완료, debuggable=false 확인
+- APK Signature Scheme v3 및 정렬 검증 통과
+- 동일한 서명 APK를 Pleos v2.1.0 에뮬레이터에 설치·실행
+- NaviHelper 연결 성공 화면 확인
+- Vehicle capability READ_WRITE 및 네 도어 닫힘(0) 조회 확인
+- 크기: 13,712,409 bytes
+- SHA-256: b1fb38d2caa22b4e990f276909584571f27b5df43382ff3903976435e83dca94
+
+초기 release의 Kotlin·AndroidX 선택 최적화 결과에서 androidx.startup 초기화 중 IllegalAccessError가 발생했습니다.
+release 최적화를 비활성화한 뒤 재빌드·서명했고, 현재 APK에서 정상 실행과 SDK 조회를 확인했습니다.
+서명된 release 파일이며 디버그 APK를 단순히 이름만 바꾼 것이 아닙니다.
+배포용 서명 키와 비밀번호는 Git에서 제외합니다.
 
 ## 다음 개발 범위
 
